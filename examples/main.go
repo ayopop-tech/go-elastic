@@ -4,20 +4,21 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ayopop-tech/go-elastic"
+	"io"
 	"log"
-	"strings"
 )
 
 func main() {
 	esClient := elastic.NewClient("http", "localhost", "9200", "", "")
 
-	date := "2019-02-02 11:55:23"
-	filteredDate := strings.Replace(strings.Replace(date, ":", "", -1), " ", "", -1)
-	partnerId := "1"
-	transactionId := "22"
-	transactionStatus := "refunded"
+	userId := "1"
+	articleId := "22"
+	articleStatus := "published"
+	publishedAt := "2019-02-02 11:55:23"
 	maxResult := 50
-	indexName := filteredDate + "_" + partnerId + "_" + transactionStatus
+
+	indexName := userId + "_" + articleStatus
+
 	resp2, err := esClient.IndexExists(indexName)
 	if err != nil {
 		panic(err.Error())
@@ -31,26 +32,28 @@ func main() {
 	}
 
 	data := map[string]string{
-		"tid":            transactionId,
-		"current_status": transactionStatus,
-		"time":           date,
+		"tid":            articleId,
+		"current_status": articleStatus,
+		"time":           publishedAt,
 	}
 
 	marshalledData, _ := json.Marshal(data)
 
-	_, err = esClient.InsertDocument(indexName, transactionId, marshalledData)
+	_, err = esClient.InsertDocument(indexName, articleId, marshalledData)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	searchResults, err := esClient.FindDocuments(indexName, transactionId, maxResult)
+	searchResults, err := esClient.FindDocuments(indexName, articleId, maxResult)
 	if err != nil {
 		panic(err.Error())
 	}
 
+	transformSearchResults(searchResults)
+}
+
+func transformSearchResults(searchResults io.ReadCloser) {
 	var mapResp map[string]interface{}
-	//var buf bytes.Buffer
-
 	if err := json.NewDecoder(searchResults).Decode(&mapResp); err != nil {
 		log.Fatalf("Error parsing the response body: %s", err)
 	}
@@ -74,5 +77,4 @@ func main() {
 	}
 
 	fmt.Println(string(jsonResult))
-
 }
