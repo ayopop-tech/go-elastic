@@ -2,19 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/ayopop-tech/go-elastic"
 	"log"
 	"strings"
 )
 
-type SearchResult struct {
-	tid            string
-	current_status string
-	time           string
-}
-
 func main() {
-
-	esClient := NewClient("http", "localhost", "9200", "", "")
+	esClient := elastic.NewClient("http", "localhost", "9200", "", "")
 
 	date := "2019-02-02 11:55:23"
 	filteredDate := strings.Replace(strings.Replace(date, ":", "", -1), " ", "", -1)
@@ -78,5 +73,6 @@ func main() {
 		panic(err.Error())
 	}
 
-	log.Println(string(jsonResult))
+	fmt.Println(string(jsonResult))
+
 }
