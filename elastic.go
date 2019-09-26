@@ -2,9 +2,7 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,106 +10,18 @@ import (
 	"strconv"
 )
 
-// Searcher set the contract to manage indices, synchronize data and request
+// Contract to manage indices and find data
 type Client interface {
-	CreateIndex(indexName, mapping string) (*http.Response, error)
-	DeleteIndex(indexName string) (*http.Response, error)
+	CreateIndex(indexName, mapping string) (bool, error)
+	DeleteIndex(indexName string) (bool, error)
 	IndexExists(indexName string) (bool, error)
-	InsertDocument(indexName string, documentType string, identifier string, data []byte) (*InsertDocument, error)
+	InsertDocument(indexName string, documentType string, identifier string, data []byte) (bool, error)
 	FindDocuments(indexName string, documentType string, maxResults int) (interface{}, error)
 }
 
 // A SearchClient describes the client configuration to manage an ElasticSearch index.
 type client struct {
 	Host url.URL
-}
-
-// NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
-func NewClient(scheme, host, port, username, password string) *client {
-
-	u := url.URL{
-		Scheme: scheme,
-		Host:   host + ":" + port,
-		User:   url.UserPassword(username, password),
-	}
-	if username == "" && password == "" {
-		u = url.URL{
-			Scheme: scheme,
-			Host:   host + ":" + port,
-		}
-	}
-
-	return &client{Host: u}
-}
-
-// CreateIndex instantiates an index
-// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-create-index.html
-func (c *client) CreateIndex(indexName, mapping string) (*http.Response, error) {
-	url := c.Host.String() + "/" + indexName
-	reader := bytes.NewBufferString(mapping)
-	response, err := sendHTTPRequest("PUT", url, reader)
-	if err != nil {
-		return &http.Response{}, err
-	}
-	esResp := &http.Response{}
-
-	err = json.Unmarshal(response, esResp)
-	if err != nil {
-		return &http.Response{}, err
-	}
-	return esResp, nil
-}
-
-// DeleteIndex deletes an existing index.
-// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-delete-index.html
-func (c *client) DeleteIndex(indexName string) (*http.Response, error) {
-	url := c.Host.String() + "/" + indexName
-	response, err := sendHTTPRequest("DELETE", url, nil)
-	if err != nil {
-		return &http.Response{}, err
-	}
-
-	esResp := &http.Response{}
-	err = json.Unmarshal(response, esResp)
-	if err != nil {
-		return &http.Response{}, err
-	}
-
-	return esResp, nil
-}
-
-// IndexExists allows to check if the index exists or not.
-// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-exists.html
-func (c *client) IndexExists(indexName string) (bool, error) {
-	url := c.Host.String() + "/" + indexName
-	httpClient := &http.Client{}
-	newReq, err := httpClient.Head(url)
-	if err != nil {
-		return false, err
-	}
-
-	return newReq.StatusCode == http.StatusOK, nil
-}
-
-type InsertDocument map[string]string
-
-// InsertDocument adds or updates a typed JSON document in a specific index, making it searchable
-// https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
-func (c *client) InsertDocument(indexName, documentType string, data []byte) (*InsertDocument, error) {
-	url := c.Host.String() + "/" + indexName + "/" + documentType
-	reader := bytes.NewBuffer(data)
-	response, err := sendHTTPRequest("POST", url, reader)
-	if err != nil {
-		return &InsertDocument{}, err
-	}
-	fmt.Println("Created document", string(response))
-	esResp := &InsertDocument{}
-	//err = json.Unmarshal(response, esResp)
-	//if err != nil {
-	//	return &InsertDocument{}, err
-	//}
-
-	return esResp, nil
 }
 
 func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
@@ -141,6 +51,75 @@ func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
 	}
 
 	return response, nil
+}
+
+// NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
+func NewClient(scheme, host, port, username, password string) *client {
+
+	u := url.URL{
+		Scheme: scheme,
+		Host:   host + ":" + port,
+		User:   url.UserPassword(username, password),
+	}
+
+	if username == "" && password == "" {
+		u = url.URL{
+			Scheme: scheme,
+			Host:   host + ":" + port,
+		}
+	}
+
+	return &client{Host: u}
+}
+
+// CreateIndex instantiates an index
+// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-create-index.html
+func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
+	esUrl := c.Host.String() + "/" + indexName
+	reader := bytes.NewBufferString(mapping)
+	_, err := sendHTTPRequest("PUT", esUrl, reader)
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// DeleteIndex deletes an existing index.
+// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-delete-index.html
+func (c *client) DeleteIndex(indexName string) (bool, error) {
+	esUrl := c.Host.String() + "/" + indexName
+	_, err := sendHTTPRequest("DELETE", esUrl, nil)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// IndexExists allows to check if the index exists or not.
+// https://www.elastic.co/guide/en/elasticsearch/reference/5.6/indices-exists.html
+func (c *client) IndexExists(indexName string) (bool, error) {
+	esUrl := c.Host.String() + "/" + indexName
+	httpClient := &http.Client{}
+	_, err := httpClient.Head(esUrl)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+// InsertDocument adds or updates a typed JSON document in a specific index, making it searchable
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-index_.html
+func (c *client) InsertDocument(indexName, documentType string, data []byte) (bool, error) {
+	esUrl := c.Host.String() + "/" + indexName + "/" + documentType
+	reader := bytes.NewBuffer(data)
+	_, err := sendHTTPRequest("POST", esUrl, reader)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 // Finds document list for specific index

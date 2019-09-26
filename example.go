@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"strings"
 )
@@ -24,18 +23,16 @@ func main() {
 	transactionStatus := "refunded"
 	maxResult := 50
 	indexName := filteredDate + "_" + partnerId + "_" + transactionStatus
-	resp2, err2 := esClient.IndexExists(indexName)
-	if err2 != nil {
-		fmt.Println(err2)
+	resp2, err := esClient.IndexExists(indexName)
+	if err != nil {
+		panic(err.Error())
 	}
 
 	if !resp2 {
-		fmt.Println("Found index", indexName, "?", resp2)
-		resp, err := esClient.CreateIndex(indexName, "")
+		_, err := esClient.CreateIndex(indexName, "")
 		if err != nil {
-			fmt.Println(err)
+			panic(err.Error())
 		}
-		fmt.Println("Index created with index-name", indexName, " and response ", resp)
 	}
 
 	data := map[string]string{
@@ -46,14 +43,14 @@ func main() {
 
 	marshalledData, _ := json.Marshal(data)
 
-	_, err1 := esClient.InsertDocument(indexName, transactionId, marshalledData)
-	if err1 != nil {
-		fmt.Println("Error while creating document", err1)
+	_, err = esClient.InsertDocument(indexName, transactionId, marshalledData)
+	if err != nil {
+		panic(err.Error())
 	}
 
-	searchResults, err3 := esClient.FindDocuments(indexName, transactionId, maxResult)
-	if err3 != nil {
-		fmt.Println("Error while fetching docs for ", transactionId)
+	searchResults, err := esClient.FindDocuments(indexName, transactionId, maxResult)
+	if err != nil {
+		panic(err.Error())
 	}
 
 	var mapResp map[string]interface{}
@@ -72,16 +69,14 @@ func main() {
 		// The "_source" data is another map interface nested inside of doc
 		source := doc["_source"]
 		// Get the document's _id and print it out along with _source data
-		//fmt.Println("_source:", source, "\n")
 		result = append(result, source)
 	}
 
-	//fmt.Println(result)
 	jsonResult, err := json.Marshal(result)
 
 	if err != nil {
 		panic(err.Error())
 	}
 
-	fmt.Println(string(jsonResult), len(result))
+	log.Println(string(jsonResult))
 }
