@@ -28,7 +28,7 @@ func main() {
 	publishedAt := "2019-02-02 11:55:23"
 	maxResult := 50
 
-	// Bulk Insert
+	// Bulk-insert data
 	bulkInsertData := [...]Product{
 		Product{Name: "Jeans", Colors: []string{"blue", "red"}},
 		Product{Name: "Polo", Colors: []string{"yellow", "red"}},

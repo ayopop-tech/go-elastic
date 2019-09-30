@@ -60,6 +60,40 @@ func main() {
 }
 ```
 
+### For bulk insert:
+
+```
+golang 
+
+// First create bulk data
+bulkInsertData := [...]Product{
+    Product{Name: "Jeans", Colors: []string{"blue", "red"}},
+    Product{Name: "Polo", Colors: []string{"yellow", "red"}},
+    Product{Name: "Shirt", Colors: []string{"brown", "blue"}},
+}
+
+// Transform it into bulk data needed as per elasticsearch
+bulkProduct := make([]interface{}, len(bulkInsertData))
+for i := range bulkInsertData {
+    bulkProduct[i] = bulkInsertData[i]
+}
+
+for _, value := range bulkProduct {
+    buffer.WriteString(BulkIndexConstant("your-index-name", "your-document-type"))
+    buffer.WriteByte('\n')
+
+    jsonProduct, _ := json.Marshal(value)
+    buffer.Write(jsonProduct)
+    buffer.WriteByte('\n')
+}
+
+// Send request to client
+_, err := esClient.BulkInsert(buffer.Bytes())
+if err != nil {
+    fmt.Println(err.Error())
+}
+
+``` 
 
 ## Contributing
 
