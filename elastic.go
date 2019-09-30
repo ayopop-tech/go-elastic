@@ -11,7 +11,11 @@ import (
 	"net/url"
 	"os"
 	"strconv"
+	"sync"
 )
+
+var once sync.Once
+var instance *client
 
 // Contract to manage indices and find data
 type Client interface {
@@ -57,8 +61,7 @@ func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
 	return response, nil
 }
 
-// NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
-func NewClient(scheme, host, port, username, password string) *client {
+func Connect() *client {
 
 	err := godotenv.Load()
 	if err != nil {
@@ -66,15 +69,21 @@ func NewClient(scheme, host, port, username, password string) *client {
 		return nil
 	}
 
-	if os.Getenv("ELASTICSEARCH_SCHEMA") == "" || os.Getenv("ELASTICSEARCH_HOST") == "" || os.Getenv("ELASTICSEARCH_PORT") == "" {
+	scheme := os.Getenv("ELASTICSEARCH_SCHEME")
+	username := os.Getenv("ELASTICSEARCH_USERNAME")
+	password := os.Getenv("ELASTICSEARCH_PASSWORD")
+	host := os.Getenv("ELASTICSEARCH_HOST")
+	port := os.Getenv("ELASTICSEARCH_PORT")
+
+	if scheme == "" || host == "" || port == "" {
 		fmt.Println("Please add necessary parameters to env file")
 		return nil
 	}
 
 	u := url.URL{
-		Scheme: os.Getenv("ELASTICSEARCH_SCHEMA"),
-		Host:   os.Getenv("ELASTICSEARCH_HOST") + ":" + os.Getenv("ELASTICSEARCH_PORT"),
-		User:   url.UserPassword(os.Getenv("ELASTICSEARCH_USERNAME"), os.Getenv("ELASTICSEARCH_PASSWORD")),
+		Scheme: scheme,
+		Host:   host + ":" + port,
+		User:   url.UserPassword(username, password),
 	}
 
 	if username == "" && password == "" {
@@ -84,12 +93,24 @@ func NewClient(scheme, host, port, username, password string) *client {
 		}
 	}
 
-	return &client{Host: u}
+	once.Do(func() {
+		instance = &client{Host: u}
+	})
+
+	return instance
+}
+
+// NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
+func NewClient() *client {
+	client := Connect()
+	return client
 }
 
 // CreateIndex instantiates an index
 func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
+	fmt.Println(esUrl)
+
 	reader := bytes.NewBufferString(mapping)
 	_, err := sendHTTPRequest("PUT", esUrl, reader)
 	if err != nil {
@@ -101,6 +122,7 @@ func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
 // DeleteIndex deletes an existing index.
 func (c *client) DeleteIndex(indexName string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
+	fmt.Println(esUrl)
 	_, err := sendHTTPRequest("DELETE", esUrl, nil)
 	if err != nil {
 		return false, err
@@ -124,6 +146,7 @@ func (c *client) IndexExists(indexName string) (bool, error) {
 // InsertDocument adds or updates a typed JSON document in a specific index, making it searchable
 func (c *client) InsertDocument(indexName, documentType string, data []byte) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName + "/" + documentType
+	fmt.Println(esUrl)
 	reader := bytes.NewBuffer(data)
 	_, err := sendHTTPRequest("POST", esUrl, reader)
 	if err != nil {
@@ -155,7 +178,7 @@ func (c *client) BulkInsert(data []byte) (bool, error) {
 		return false, err
 	}
 
-	fmt.Println("Bulk insert response", resp)
+	fmt.Println("Bulk insert response", string(resp))
 
 	return true, nil
 }

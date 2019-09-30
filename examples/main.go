@@ -19,7 +19,7 @@ func BulkIndexConstant(indexName, documentType string) string {
 }
 
 func main() {
-	esClient := elastic.NewClient("http", "localhost", "9200", "", "")
+	esClient := elastic.NewClient()
 
 	var buffer bytes.Buffer
 	userId := "1"
@@ -95,6 +95,8 @@ func transformSearchResults(searchResults io.ReadCloser) {
 	if err := json.NewDecoder(searchResults).Decode(&mapResp); err != nil {
 		log.Fatalf("Error parsing the response body: %s", err)
 	}
+
+	_ = json.NewDecoder(searchResults).Decode(&mapResp)
 
 	result := []interface{}{}
 
