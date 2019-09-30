@@ -3,10 +3,13 @@ package elastic
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"github.com/joho/godotenv"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 )
 
@@ -16,6 +19,7 @@ type Client interface {
 	DeleteIndex(indexName string) (bool, error)
 	IndexExists(indexName string) (bool, error)
 	InsertDocument(indexName string, documentType string, identifier string, data []byte) (bool, error)
+	BulkInsertDocuments(data []byte) (bool, error)
 	FindDocuments(indexName string, documentType string, maxResults int) (interface{}, error)
 }
 
@@ -56,10 +60,21 @@ func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
 // NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
 func NewClient(scheme, host, port, username, password string) *client {
 
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("Please add env file")
+		return nil
+	}
+
+	if os.Getenv("ELASTICSEARCH_SCHEMA") == "" || os.Getenv("ELASTICSEARCH_HOST") == "" || os.Getenv("ELASTICSEARCH_PORT") == "" {
+		fmt.Println("Please add necessary parameters to env file")
+		return nil
+	}
+
 	u := url.URL{
-		Scheme: scheme,
-		Host:   host + ":" + port,
-		User:   url.UserPassword(username, password),
+		Scheme: os.Getenv("ELASTICSEARCH_SCHEMA"),
+		Host:   os.Getenv("ELASTICSEARCH_HOST") + ":" + os.Getenv("ELASTICSEARCH_PORT"),
+		User:   url.UserPassword(os.Getenv("ELASTICSEARCH_USERNAME"), os.Getenv("ELASTICSEARCH_PASSWORD")),
 	}
 
 	if username == "" && password == "" {
@@ -130,4 +145,17 @@ func (c *client) FindDocuments(indexName string, documentType string, maxResults
 	}
 
 	return resp.Body, nil
+}
+
+func (c *client) BulkInsert(data []byte) (bool, error) {
+	esUrl := c.Host.String() + "/_bulk"
+	reader := bytes.NewBuffer(data)
+	resp, err := sendHTTPRequest("POST", esUrl, reader)
+	if err != nil {
+		return false, err
+	}
+
+	fmt.Println("Bulk insert response", resp)
+
+	return true, nil
 }
