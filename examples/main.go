@@ -23,7 +23,7 @@ func main() {
 	esClient := elastic.NewClient()
 
 	var buffer bytes.Buffer
-	userId := "2"
+	userId := "5"
 	articleId := "22"
 	articleStatus := "published"
 	publishedAt := "2019-02-02 11:55:23"
@@ -49,6 +49,18 @@ func main() {
 		},
 	}
 
+	resp2, err := esClient.IndexExists(indexName)
+	if err != nil {
+		panic(err.Error())
+	}
+
+	if !resp2 {
+		_, err := esClient.CreateIndex(indexName, "")
+		if err != nil {
+			panic(err.Error())
+		}
+	}
+
 	bulkProduct := make([]interface{}, len(bulkInsertData))
 	for i := range bulkInsertData {
 		bulkProduct[i] = bulkInsertData[i]
@@ -63,21 +75,11 @@ func main() {
 		buffer.WriteByte('\n')
 	}
 
-	_, err := esClient.BulkInsert(buffer.Bytes())
+	fmt.Println(string(buffer.Bytes()))
+
+	_, err = esClient.BulkInsert(buffer.Bytes())
 	if err != nil {
 		fmt.Println(err.Error())
-	}
-
-	resp2, err := esClient.IndexExists(indexName)
-	if err != nil {
-		panic(err.Error())
-	}
-
-	if !resp2 {
-		_, err := esClient.CreateIndex(indexName, "")
-		if err != nil {
-			panic(err.Error())
-		}
 	}
 
 	// Insert single document
