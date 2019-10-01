@@ -139,8 +139,10 @@ func (c *client) IndexExists(indexName string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
 	httpClient := &http.Client{}
 	resp, err := httpClient.Head(esUrl)
-	if resp.StatusCode != 200 {
-		return false, err
+	if err != nil {
+		if resp.StatusCode != 200 {
+			return false, err
+		}
 	}
 
 	defer resp.Body.Close()
