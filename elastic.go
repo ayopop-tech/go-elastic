@@ -143,6 +143,7 @@ func (c *client) IndexExists(indexName string) (bool, error) {
 		return false, err
 	}
 
+	defer resp.Body.Close()
 	return true, nil
 }
 
@@ -166,7 +167,7 @@ func (c *client) FindDocuments(indexName string, documentType string, maxResults
 	}
 	resp, err := http.Get(esUrl)
 	if err != nil {
-		panic("Error on getting search result")
+		return nil, err
 	}
 
 	return resp.Body, nil
