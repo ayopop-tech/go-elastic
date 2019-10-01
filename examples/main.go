@@ -7,6 +7,7 @@ import (
 	"github.com/ayopop-tech/go-elastic"
 	"io"
 	"log"
+	"strconv"
 )
 
 type Article struct {
@@ -23,12 +24,12 @@ func main() {
 	esClient := elastic.NewClient()
 
 	var buffer bytes.Buffer
-	userId := "5"
-	articleId := "22"
+	userId := 5
+	articleId := "2"
 	articleStatus := "published"
 	publishedAt := "2019-02-02 11:55:23"
 	maxResult := 50
-	indexName := userId + "_" + articleStatus
+	indexName := strconv.Itoa(userId) + "_" + articleId + "_" + articleStatus
 
 	// Bulk-insert data
 	bulkInsertData := [...]Article{
@@ -79,7 +80,7 @@ func main() {
 
 	_, err = esClient.BulkInsert(buffer.Bytes())
 	if err != nil {
-		fmt.Println(err.Error())
+		fmt.Println("Error", err.Error())
 	}
 
 	// Insert single document
