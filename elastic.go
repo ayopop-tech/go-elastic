@@ -112,7 +112,10 @@ func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
 	fmt.Println(esUrl)
 
 	reader := bytes.NewBufferString(mapping)
-	_, err := sendHTTPRequest("PUT", esUrl, reader)
+	resp, err := sendHTTPRequest("PUT", esUrl, reader)
+
+	fmt.Println("Response", string(resp))
+
 	if err != nil {
 		return false, err
 	}
@@ -135,8 +138,8 @@ func (c *client) DeleteIndex(indexName string) (bool, error) {
 func (c *client) IndexExists(indexName string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
 	httpClient := &http.Client{}
-	_, err := httpClient.Head(esUrl)
-	if err != nil {
+	resp, err := httpClient.Head(esUrl)
+	if resp.StatusCode != 200 {
 		return false, err
 	}
 
@@ -146,7 +149,6 @@ func (c *client) IndexExists(indexName string) (bool, error) {
 // InsertDocument adds or updates a typed JSON document in a specific index, making it searchable
 func (c *client) InsertDocument(indexName, documentType string, data []byte) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName + "/" + documentType
-	fmt.Println(esUrl)
 	reader := bytes.NewBuffer(data)
 	_, err := sendHTTPRequest("POST", esUrl, reader)
 	if err != nil {
@@ -173,12 +175,10 @@ func (c *client) FindDocuments(indexName string, documentType string, maxResults
 func (c *client) BulkInsert(data []byte) (bool, error) {
 	esUrl := c.Host.String() + "/_bulk"
 	reader := bytes.NewBuffer(data)
-	resp, err := sendHTTPRequest("POST", esUrl, reader)
+	_, err := sendHTTPRequest("POST", esUrl, reader)
 	if err != nil {
 		return false, err
 	}
-
-	fmt.Println("Bulk insert response", string(resp))
 
 	return true, nil
 }

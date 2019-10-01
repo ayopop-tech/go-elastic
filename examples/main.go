@@ -9,9 +9,10 @@ import (
 	"log"
 )
 
-type Product struct {
-	Name   string
-	Colors []string
+type Article struct {
+	ArticleId     string
+	ArticleStatus string
+	PublishedAt   string
 }
 
 func BulkIndexConstant(indexName, documentType string) string {
@@ -22,17 +23,30 @@ func main() {
 	esClient := elastic.NewClient()
 
 	var buffer bytes.Buffer
-	userId := "1"
+	userId := "2"
 	articleId := "22"
 	articleStatus := "published"
 	publishedAt := "2019-02-02 11:55:23"
 	maxResult := 50
+	indexName := userId + "_" + articleStatus
 
 	// Bulk-insert data
-	bulkInsertData := [...]Product{
-		Product{Name: "Jeans", Colors: []string{"blue", "red"}},
-		Product{Name: "Polo", Colors: []string{"yellow", "red"}},
-		Product{Name: "Shirt", Colors: []string{"brown", "blue"}},
+	bulkInsertData := [...]Article{
+		Article{
+			ArticleId:     "1",
+			ArticleStatus: "processing",
+			PublishedAt:   "2019-02-02 11:55:23",
+		},
+		Article{
+			ArticleId:     "2",
+			ArticleStatus: "processing",
+			PublishedAt:   "2019-02-02 11:55:23",
+		},
+		Article{
+			ArticleId:     "3",
+			ArticleStatus: "processing",
+			PublishedAt:   "2019-02-02 11:55:23",
+		},
 	}
 
 	bulkProduct := make([]interface{}, len(bulkInsertData))
@@ -41,7 +55,7 @@ func main() {
 	}
 
 	for _, value := range bulkProduct {
-		buffer.WriteString(BulkIndexConstant("2019-01-01115523_1_refunded", "22"))
+		buffer.WriteString(BulkIndexConstant(indexName, articleId))
 		buffer.WriteByte('\n')
 
 		jsonProduct, _ := json.Marshal(value)
@@ -53,8 +67,6 @@ func main() {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-
-	indexName := userId + "_" + articleStatus
 
 	resp2, err := esClient.IndexExists(indexName)
 	if err != nil {
@@ -70,9 +82,9 @@ func main() {
 
 	// Insert single document
 	data := map[string]string{
-		"tid":            articleId,
-		"current_status": articleStatus,
-		"time":           publishedAt,
+		"article_id":   articleId,
+		"status":       articleStatus,
+		"published_at": publishedAt,
 	}
 
 	marshalledData, _ := json.Marshal(data)
@@ -116,5 +128,5 @@ func transformSearchResults(searchResults io.ReadCloser) {
 		panic(err.Error())
 	}
 
-	fmt.Println([]byte(jsonResult))
+	fmt.Println(string(jsonResult))
 }
