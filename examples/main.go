@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/ayopop-tech/go-elastic"
 	"strings"
+
+	"github.com/ayopop-tech/go-elastic"
 )
 
 type Article struct {
@@ -23,7 +24,7 @@ func AddFindDocumentConstant(documentType string) []byte {
 		"version": true,
 		"query": {
 			"term": {
-				"tid": {
+				"_type": {
 					"value": ` + documentType + `
 				}
 			}
@@ -42,7 +43,9 @@ func main() {
 	articleStatus := "processing"
 	publishedAt := "2019-08-09 11:55:23"
 	formattedPublishedAt := strings.Replace(strings.Replace(publishedAt, ":", "", -1), " ", "", -1)
-	indexName := formattedPublishedAt + "_" + userId + "_" + articleStatus
+	indexName := formattedPublishedAt + "_" + userId
+
+	fmt.Println(indexName)
 
 	// Bulk-insert data
 	bulkInsertData := [...]Article{
@@ -108,6 +111,7 @@ func main() {
 	}
 
 	findDocumentQuery := AddFindDocumentConstant(articleId)
+	fmt.Println(string(findDocumentQuery))
 
 	// Search documents
 	searchResults, err := esClient.FindDocuments(indexName, findDocumentQuery)
