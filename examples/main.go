@@ -5,9 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ayopop-tech/go-elastic"
-	"io"
-	"log"
-	"strconv"
+	"strings"
 )
 
 type Article struct {
@@ -20,16 +18,31 @@ func BulkIndexConstant(indexName, documentType string) string {
 	return `{"index": { "_index": "` + indexName + `", "_type": "` + documentType + `" } }`
 }
 
+func AddFindDocumentConstant(documentType string) []byte {
+	documentQuery := `{
+		"version": true,
+		"query": {
+			"term": {
+				"tid": {
+					"value": ` + documentType + `
+				}
+			}
+		}
+	}`
+
+	return []byte(documentQuery)
+}
+
 func main() {
 	esClient := elastic.NewClient()
 
 	var buffer bytes.Buffer
-	userId := 5
-	articleId := "2"
-	articleStatus := "published"
-	publishedAt := "2019-02-02 11:55:23"
-	maxResult := 50
-	indexName := strconv.Itoa(userId) + "_" + articleId + "_" + articleStatus
+	userId := "1"
+	articleId := "21"
+	articleStatus := "processing"
+	publishedAt := "2019-08-09 11:55:23"
+	formattedPublishedAt := strings.Replace(strings.Replace(publishedAt, ":", "", -1), " ", "", -1)
+	indexName := formattedPublishedAt + "_" + userId + "_" + articleStatus
 
 	// Bulk-insert data
 	bulkInsertData := [...]Article{
@@ -76,8 +89,6 @@ func main() {
 		buffer.WriteByte('\n')
 	}
 
-	fmt.Println(string(buffer.Bytes()))
-
 	_, err = esClient.BulkInsert(buffer.Bytes())
 	if err != nil {
 		fmt.Println("Error", err.Error())
@@ -96,40 +107,13 @@ func main() {
 		panic(err.Error())
 	}
 
+	findDocumentQuery := AddFindDocumentConstant(articleId)
+
 	// Search documents
-	searchResults, err := esClient.FindDocuments(indexName, articleId, maxResult)
+	searchResults, err := esClient.FindDocuments(indexName, findDocumentQuery)
 	if err != nil {
 		panic(err.Error())
 	}
 
-	transformSearchResults(searchResults)
-}
-
-func transformSearchResults(searchResults io.ReadCloser) {
-	var mapResp map[string]interface{}
-	if err := json.NewDecoder(searchResults).Decode(&mapResp); err != nil {
-		log.Fatalf("Error parsing the response body: %s", err)
-	}
-
-	_ = json.NewDecoder(searchResults).Decode(&mapResp)
-
-	result := []interface{}{}
-
-	//Iterate the document "hits" returned by API call
-	for _, hit := range mapResp["hits"].(map[string]interface{})["hits"].([]interface{}) {
-		// Parse the attributes/fields of the document
-		doc := hit.(map[string]interface{})
-		// The "_source" data is another map interface nested inside of doc
-		source := doc["_source"]
-		// Get the document's _id and print it out along with _source data
-		result = append(result, source)
-	}
-
-	jsonResult, err := json.Marshal(result)
-
-	if err != nil {
-		panic(err.Error())
-	}
-
-	fmt.Println(string(jsonResult))
+	fmt.Println(searchResults)
 }

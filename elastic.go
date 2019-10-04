@@ -2,6 +2,7 @@ package elastic
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/joho/godotenv"
@@ -10,7 +11,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strconv"
 	"sync"
 )
 
@@ -30,6 +30,30 @@ type Client interface {
 // A SearchClient describes the client configuration to manage an ElasticSearch index.
 type client struct {
 	Host url.URL
+}
+
+type FindDocumentResponse struct {
+	Took    int   `json:"took"`
+	Timeout bool  `json:"timed_out"`
+	Shards  Shard `json:"_shards"`
+	Hits    Hits  `json:"hits"`
+}
+
+type Shard struct {
+	Total      int `json:"total"`
+	Successful int `json:"successful"`
+	Skipped    int `json:"skipped"`
+	Failed     int `json:"failed"`
+}
+
+type Hits struct {
+	Total    interface{} `json:"total"`
+	Maxscore float64     `json:"max_score"`
+	Hits     []Record    `json:hits`
+}
+
+type Record struct {
+	Source interface{} `json:"_source"`
 }
 
 func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
@@ -109,13 +133,8 @@ func NewClient() *client {
 // CreateIndex instantiates an index
 func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
-	fmt.Println(esUrl)
-
 	reader := bytes.NewBufferString(mapping)
-	resp, err := sendHTTPRequest("PUT", esUrl, reader)
-
-	fmt.Println("Response", string(resp))
-
+	_, err := sendHTTPRequest("PUT", esUrl, reader)
 	if err != nil {
 		return false, err
 	}
@@ -125,7 +144,6 @@ func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
 // DeleteIndex deletes an existing index.
 func (c *client) DeleteIndex(indexName string) (bool, error) {
 	esUrl := c.Host.String() + "/" + indexName
-	fmt.Println(esUrl)
 	_, err := sendHTTPRequest("DELETE", esUrl, nil)
 	if err != nil {
 		return false, err
@@ -157,20 +175,6 @@ func (c *client) InsertDocument(indexName, documentType string, data []byte) (bo
 	return true, nil
 }
 
-// Finds document list for specific index
-func (c *client) FindDocuments(indexName string, documentType string, maxResults int) (io.ReadCloser, error) {
-	esUrl := c.Host.String() + "/" + indexName + "/" + documentType + "/_search"
-	if maxResults >= 0 {
-		esUrl += "?size=" + strconv.Itoa(maxResults)
-	}
-	resp, err := http.Get(esUrl)
-	if err != nil {
-		return nil, err
-	}
-
-	return resp.Body, nil
-}
-
 func (c *client) BulkInsert(data []byte) (bool, error) {
 	esUrl := c.Host.String() + "/_bulk"
 	reader := bytes.NewBuffer(data)
@@ -180,4 +184,44 @@ func (c *client) BulkInsert(data []byte) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// Finds document list for specific index
+func (c *client) FindDocuments(indexName string, data []byte) (string, error) {
+	esUrl := c.Host.String() + "/" + indexName + "/_search"
+	queryData := bytes.NewBuffer(data)
+	resp, err := sendHTTPRequest("POST", esUrl, queryData)
+	if err != nil {
+		return "", err
+	}
+
+	transformedResults := transformSearchResults(resp)
+
+	return transformedResults, nil
+}
+
+func transformSearchResults(searchResults []byte) string {
+
+	data := new(FindDocumentResponse)
+	err := json.Unmarshal(searchResults, &data)
+	if err != nil {
+		panic("Error wile decoding response")
+	}
+	result := []interface{}{}
+
+	hitsData := data.Hits.Hits
+
+	//Iterate the document "hits"
+	for _, hitItem := range hitsData {
+		source := hitItem.Source
+		result = append(result, source)
+	}
+
+	jsonResult, err := json.Marshal(result)
+
+	if err != nil {
+		panic(err.Error())
+	}
+
+	return string(jsonResult)
 }
