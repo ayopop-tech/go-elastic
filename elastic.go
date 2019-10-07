@@ -24,7 +24,7 @@ type Client interface {
 	IndexExists(indexName string) (bool, error)
 	InsertDocument(indexName string, documentType string, identifier string, data []byte) (bool, error)
 	BulkInsertDocuments(data []byte) (bool, error)
-	FindDocuments(indexName string, documentType string, maxResults int) (interface{}, error)
+	FindDocuments(indexName string, documentType string, maxResults int) ([]interface{}, error)
 }
 
 // A SearchClient describes the client configuration to manage an ElasticSearch index.
@@ -187,12 +187,12 @@ func (c *client) BulkInsert(data []byte) (bool, error) {
 }
 
 // Finds document list for specific index
-func (c *client) FindDocuments(indexName string, data []byte) (string, error) {
+func (c *client) FindDocuments(indexName string, data []byte) ([]interface{}, error) {
 	esUrl := c.Host.String() + "/" + indexName + "/_search"
 	queryData := bytes.NewBuffer(data)
 	resp, err := sendHTTPRequest("POST", esUrl, queryData)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	transformedResults := transformSearchResults(resp)
@@ -200,7 +200,7 @@ func (c *client) FindDocuments(indexName string, data []byte) (string, error) {
 	return transformedResults, nil
 }
 
-func transformSearchResults(searchResults []byte) string {
+func transformSearchResults(searchResults []byte) []interface{} {
 
 	data := new(FindDocumentResponse)
 	err := json.Unmarshal(searchResults, &data)
@@ -217,11 +217,6 @@ func transformSearchResults(searchResults []byte) string {
 		result = append(result, source)
 	}
 
-	jsonResult, err := json.Marshal(result)
+	return result
 
-	if err != nil {
-		panic(err.Error())
-	}
-
-	return string(jsonResult)
 }
