@@ -35,7 +35,7 @@ func AddFindDocumentConstant(documentType string) []byte {
 }
 
 func main() {
-	esClient := elastic.NewClient()
+	esClient := elastic.NewClient("http", "localhost", "9200", "", "")
 
 	var buffer bytes.Buffer
 	userId := "1"

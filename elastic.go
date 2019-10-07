@@ -5,12 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/joho/godotenv"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"sync"
 )
 
@@ -85,22 +83,10 @@ func sendHTTPRequest(method, url string, body io.Reader) ([]byte, error) {
 	return response, nil
 }
 
-func Connect() *client {
-
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Println("Please add env file")
-		return nil
-	}
-
-	scheme := os.Getenv("ELASTICSEARCH_SCHEME")
-	username := os.Getenv("ELASTICSEARCH_USERNAME")
-	password := os.Getenv("ELASTICSEARCH_PASSWORD")
-	host := os.Getenv("ELASTICSEARCH_HOST")
-	port := os.Getenv("ELASTICSEARCH_PORT")
+func Connect(scheme string, host string, port string, username string, password string) *client {
 
 	if scheme == "" || host == "" || port == "" {
-		fmt.Println("Please add necessary parameters to env file")
+		fmt.Println("Please add necessary parameters to establish elasticsearch connection.")
 		return nil
 	}
 
@@ -125,8 +111,8 @@ func Connect() *client {
 }
 
 // NewSearchClient creates and initializes a new ElasticSearch client, implements core api for Indexing and searching.
-func NewClient() *client {
-	client := Connect()
+func NewClient(scheme string, host string, port string, username string, password string) *client {
+	client := Connect(scheme, host, port, username, password)
 	return client
 }
 
