@@ -118,11 +118,14 @@ func NewClient(scheme string, host string, port string, username string, passwor
 
 // CreateIndex instantiates an index
 func (c *client) CreateIndex(indexName, mapping string) (bool, error) {
-	esUrl := c.Host.String() + "/" + indexName
-	reader := bytes.NewBufferString(mapping)
-	_, err := sendHTTPRequest("PUT", esUrl, reader)
-	if err != nil {
-		return false, err
+	doesIndexExist, _ := c.IndexExists(indexName)
+	if !doesIndexExist {
+		esUrl := c.Host.String() + "/" + indexName
+		reader := bytes.NewBufferString(mapping)
+		_, err := sendHTTPRequest("PUT", esUrl, reader)
+		if err != nil {
+			return false, err
+		}
 	}
 	return true, nil
 }

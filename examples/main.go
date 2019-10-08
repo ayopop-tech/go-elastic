@@ -41,7 +41,7 @@ func main() {
 	userId := "1"
 	articleId := "21"
 	articleStatus := "processing"
-	publishedAt := "2019-08-09 11:55:23"
+	publishedAt := "2018-08-09 11:55:23"
 	formattedPublishedAt := strings.Replace(strings.Replace(publishedAt, ":", "", -1), " ", "", -1)
 	indexName := formattedPublishedAt + "_" + userId
 
@@ -66,16 +66,9 @@ func main() {
 		},
 	}
 
-	resp2, err := esClient.IndexExists(indexName)
+	_, err := esClient.CreateIndex(indexName, "")
 	if err != nil {
 		panic(err.Error())
-	}
-
-	if !resp2 {
-		_, err := esClient.CreateIndex(indexName, "")
-		if err != nil {
-			panic(err.Error())
-		}
 	}
 
 	bulkProduct := make([]interface{}, len(bulkInsertData))
